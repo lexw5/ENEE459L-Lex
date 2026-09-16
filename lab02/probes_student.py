@@ -38,15 +38,15 @@ def probe_torch(env: Env) -> dict[str, Any]:
     src = "import torch"
 
     try:
-        torch = env.importer("torch")
+        tor = env.importer("torch")
     except ModuleNotAvailable as e:
         return unknown(src, f"torch is not importable as {e}")
     import pdb
     pdb.set_trace()
-    raw = getattr_path(torch, "__version__")
+    raw = getattr_path(tor, "__version__")
     version = _split_local_version(str(raw)) if raw else None
 
-    available = getattr_path(torch, "cuda.is_available")
+    available = getattr_path(tor, "cuda.is_available")
     if callable(available):
         cuda_available = bool(available())
     else:
@@ -54,11 +54,11 @@ def probe_torch(env: Env) -> dict[str, Any]:
 
     device = None
     if cuda_available is True:
-        name = getattr_path(torch, "cuda.get_device_name")
+        name = getattr_path(tor, "cuda.get_device_name")
         if callable(name):
             device = name(0)
 
-    out = {"value": raw, "source": src, "status": "ok" if raw else "unknown", "version": version, "cuda_available": cuda_available, "cuda_version": getattr_path(torch, "version.cuda"), "device_name": device,}
+    out = {"value": raw, "source": src, "status": "ok" if raw else "unknown", "version": version, "cuda_available": cuda_available, "cuda_version": getattr_path(tor, "version.cuda"), "device_name": device,}
 
     if not raw:
         out["detail"] = "torch imported but no __version__"
