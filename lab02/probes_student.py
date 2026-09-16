@@ -41,8 +41,7 @@ def probe_torch(env: Env) -> dict[str, Any]:
         tor = env.importer("torch")
     except ModuleNotAvailable as e:
         return unknown(src, f"torch is not importable as {e}")
-    import pdb
-    pdb.set_trace()
+    
     raw = getattr_path(tor, "__version__")
     version = _split_local_version(str(raw)) if raw else None
 
