@@ -35,28 +35,127 @@ def _split_local_version(raw: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def probe_torch(env: Env) -> dict[str, Any]:
-    #write your code here
-    pass
+    src = "import torch"
+
+    try:
+        torch = env.importer("torch")
+    except ModuleNotAvailable as e:
+        return unknown(src, f"torch is not importable as {e}")
+
+    raw = getattr_path(torch, "__version__")
+    version = _split_local_version(str(raw)) if raw else None
+
+    available = getattr_path(torch, "cuda.is_available")
+    if callable(available):
+        cuda_available = bool(available())
+    else:
+        cuda_available = None
+
+    device = None
+    if cuda_available is True:
+        name = getattr_path(torch, "cuda.get_device_name")
+        if callable(name):
+            device = name(0)
+
+    out = {"value": raw, "source": src, "status": "ok" if raw else "unknown", "version": version, "cuda_available": cuda_available, "cuda_version": getattr_path(torch, "version.cuda"), "device_name": device,}
+
+    if not raw:
+        out["detail"] = "torch imported but no __version__"
+
+    nv = version["nvidia_build"] if version else False
+
+    if cuda_available is True:
+        out["diagnosis"] = "torch is installed and sees the GPU"
+    elif cuda_available is None:
+        out["diagnosis"] = "torch is installed but does not expose torch.cuda.is_available"
+    elif nv is True:
+        out["diagnosis"] = "this is an nvidia build but it cannot see the GPU, look at driver stack, container, or user groups"
+    else:
+        out["diagnosis"] = "this wheel has no nvidia local versio tag and cannot see the GPU"
+
+    return out
+
 
 
 def probe_cuda(env: Env) -> dict[str, Any]:
-    #write your code here
-    pass
+    src = "/usr/local/cuda/version.json"
+    raw = read_text(env.root, src)
+
+    if not raw:
+        return unknown(src, "CUDA toolkit maifest absent, no toolkit installed at usr/local/cuda")
+
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return unknown(src, "CUDA toolkit maifest present but not valid JSON")
+
+    version = data.get("cuda", {}).get("version")
+
+    if not version:
+        return unknown(src, "manifest present but no CUDA version")
+
+    return {"value": version, "source": src, "status": "ok", "line": major_minor(version),}
 
 
 def probe_opencv(env: Env) -> dict[str, Any]:
-    #write your code here
-    pass
+    src = "import cv2"
+
+    try:
+        cv2 = env.importer("cv2")    
+    except ModuleNotAvailable as e:
+        return unknown(src, f"cv2 is not importable: {e}")
+
+    raw = getattr_path(cv2, "__version__")
+
+    counter = getattr_path(cv2, "cuda.getCudaEnabledDeviceCount")
+    if callable(counter):
+        devices = int(counter())
+        cuda_devices = devices
+        if devices:
+            detail = f"built with CUDA, {devices} device(s) visible"
+        else:
+            detail = "the cv2.cuda namespace exists but reports no devices"
+    else:
+            cuda_devices = None
+            detail = "no cv2.cuda namespace"
+
+    return {"value": raw, "source": src, "status": "ok" if raw else "unknown", "cuda_devices": cuda_devices, "cuda_enabled": bool(cuda_devices), "detail": detail,}
 
 
 def probe_tensorrt(env: Env) -> dict[str, Any]:
-    # write your code here
-    pass
+    src = "import tensorrt"
+
+    try:
+        trt = env.importer("tensorrt")
+    except ModuleNotAvailable as e:
+        hint = ""
+        if env.python.prefix and env.python.prefix != env.python.base_prefix:
+            hint = "you are inside a venv and tensorrt is a system package that a venv made without --system-site-packages"
+            return unknown(src, f"tensorrt is not importable: {e}{hint}")
+
+    raw = getattr_path(trt, "__version__")
+    if not raw:
+        return unknown(src, "tensorrt imported but no version")
+
+    return {"value": raw, "source": src, "status": "ok", "line": major_minor(str(raw))}
 
 
 def probe_l4t(env: Env) -> dict[str, Any]:
-    # write your code here
-    pass
+    src = "/etc/nv_tegra_release"
+    raw = read_text(env.root, src)
+
+    if not raw:
+        return unknown(src, "L4t release file is absent")
+
+    release = _L4T_RELEASE.search(raw)
+    revision = _L4T_REVISION.search(raw)
+
+    if release is None or revision is None:
+        return unknown(src, f"release file present but unparseable: {raw.splitlines()[0][:80]}")
+
+    version = f"{release.group(1)}.{revision.group(1)}"
+
+    return {"value": version, "source": src, "status": "ok", "line": major_minor(version), "raw": raw.splitlines()[0],}
 
 ## for debugging - uncomment the following lines for debugging.
 # if __name__ == "__main__":
