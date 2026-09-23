@@ -1,0 +1,84 @@
+{
+    "warmup_boundary": {
+        "value": 1,
+        "source": "bench.clock around workload.run() and workload.synchronied()",
+        "status": "ok",
+        "settled_ms": 18.6762,
+        "threshold_ms": 28.0142,
+        "tolerance": 0.5,
+        "retained": 99
+    },
+    "summarize_setup": {
+        "n": 100,
+        "mean": 22.9307,
+        "std": 42.1457,
+        "min": 18.5825,
+        "max": 440.171,
+        "p50": 18.6946,
+        "p95": 18.9349,
+        "p99": 24.0115
+    },
+    "is_multimodal": {
+        "value": false,
+        "source": "bench.clock around workload.run() and workload.synchronied()",
+        "status": "ok",
+        "widest_gap_ms": 0.0718,
+        "median_gap_ms": 0.0012,
+        "gap_ratio": 59.0543,
+        "ratio_threshold": 20.0,
+        "split_between_ms": [
+            18.8364,
+            18.9082
+        ],
+        "trimmed_per_side": 5,
+        "lower_group": {
+            "count": 86,
+            "fraction": 0.9556,
+            "mean_ms": 18.6916
+        },
+        "upper_group": {
+            "count": 6,
+            "fraction": 0.0667,
+            "mean_ms": 18.8919
+        }
+    },
+    "probe_power_state": {
+        "value": "25W",
+        "source": "nvpmodel -q",
+        "status": "ok",
+        "mode_id": 1,
+        "cpu_min_freq_khz": "729600",
+        "cpu_max_freq_khz": "1344000",
+        "jetson_clocks": false
+    },
+    "probe_telemetry": {
+        "temperature_c": {
+            "value": 52.375,
+            "source": "sys/devices/virtual/thermal/thermal_zone6/temp",
+            "status": "ok",
+            "unit": "C",
+            "zone": "soc1-thermal",
+            "all_zones_c": {
+                "cpu-thermal": 52.187,
+                "gpu-thermal": 52.062,
+                "soc0-thermal": 52.25,
+                "soc1-thermal": 52.375,
+                "soc2-thermal": 51.312,
+                "tj-thermal": 52.375
+            }
+        },
+        "power_mw": {
+            "value": null,
+            "source": "/",
+            "status": "unknown",
+            "detail": "no INA3221 power node found"
+        },
+        "gpu_load_pct": {
+            "value": 27.4,
+            "source": "sys/devices/platform/gpu.0/load",
+            "status": "ok",
+            "unit": "%",
+            "raw": 274
+        }
+    }
+}
