@@ -167,9 +167,11 @@ def read_text(root: Path, rel: str) -> str | None:
     """Read `root/rel`, returning None if it is missing or unreadable."""
     p = Path(root) / rel.lstrip("/")
     try:
-        return p.read_text(errors="replace").strip("\x00").strip()
-    except (OSError, UnicodeDecodeError):
+        text = p.read_text(errors="replace")
+    except (OSError, UnicodeDecodeError, TypeError):
         return None
+
+    return text.strip("\x00").strip()
 
 
 def read_first(root: Path, candidates: tuple[str, ...]) -> tuple[str, str] | None:
