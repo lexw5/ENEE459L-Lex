@@ -218,11 +218,11 @@ def probe_power_state(bench: Bench) -> dict[str, Any]:
         return unknown (res.source, "no 'NV Power Mode:' line in nvpmodel output")
 
     root = bench.telemetry
-    fmin = _parse_int(read_first(root, CPUFREQ_MIN))
-    fmax = _parse_int(read_first(root, CPUFREQ_MAX))
+    fmin = (read_first(root, CPUFREQ_MIN))
+    fmax = (read_first(root, CPUFREQ_MAX))
 
     if fmin is None or fmax is None:
-        jetson_clocks = None
+        jetson_clocks = False
     else:
         jetson_clocks = fmin == fmax
 
