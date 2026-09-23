@@ -325,4 +325,4 @@ if __name__ == "__main__":
     # save report
     path = "system_report.json"
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=4)
+        json.dump(report, f, indent=4, default=str)
