@@ -248,7 +248,7 @@ def _temperature(root: Path) -> dict[str, Any]:
 
     for zone in zones:
         rel = f"{THERMAL_ZONES}/{zone}/temp"
-        raw = _parse_int(read_first(root, rel))
+        raw = _parse_int(read_text(root, rel))
         if raw is None or raw <= -1000:
             continue
         temp_c = raw / 1000.0
