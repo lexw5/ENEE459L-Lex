@@ -84,7 +84,9 @@ def magnitude_mask(t: Tensor, ratio: float) -> tuple[int, ...]:
     the whole model.
     """
 
-    pass
+    n = t.parameters
+    drop = set(_smallest_indices(t.data, _drop_count(n, ratio)))
+    return tuple(0 if i in drop else 1 for i in range(n))
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +105,11 @@ def channel_keep(t: Tensor, ratio: float, p: float = 2.0) -> tuple[int, ...]:
     achieved reduction, so a 90% request on a 4-channel tensor shows up in
     `sparsity.json` as an achieved 75% and the gap is visible.
     """
-    pass
+    scores = _group_scores(t, p=p)
+    c_out = t.channels
+    drop_n = min(_drop_count(c_out, ratio), max(0, c_out - MIN_CHANNELS))
+    dropped = set(_smallest_indices(scores, drop_n))
+    return tuple(c for c in range(c_out) if c not in dropped)
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +124,10 @@ def apply_mask(t: Tensor, mask: Sequence[int]) -> Tensor:
     and multiplied by any dense kernel exactly as before. Nothing here is a
     saving; it is a set of values that happen to be zero.
     """
-    pass
+    if len(mask) != t.parameters:
+        raise TensorError(...)
+    data = tuple(v if m else 0.0 for v, m in zip(t.data, mask))
+    return Tensor(name = t.name, shape = t.shape, data = data, dtype=t.dtype)
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +148,15 @@ def drop_channels(t: Tensor, keep: Sequence[int]) -> Tensor:
     by tensor and accounts for it that way, which is honest as long as
     `sparsity.json` does not claim the model still runs — and it does not.
     """
-    pass
+    kept = sorted(set(int(c) for c in keep))
+    if len(kept) < MIN_CHANNELS:
+        raise TensorError(...)
+    data = []
+    for c in kept:
+        lo, hi = _channel_slice(t, c)
+        data.extend(t.data[lo:hi])
+    shape = (len(kept), ) + tuple(t.shape[1:])
+    return Tensor(name = t.name, shape = shape, data = tuple(data), dtype = t.dtype)
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +192,20 @@ def bytes_stored(tensors: Sequence[Tensor], storage: str = "dense",
     accounting that rounds in its own favour is the thing this lab teaches you
     to distrust.
     """
-    pass
+    for t in tensors:
+        width = dtype_bytes(t.dtype)
+        if storage == "dense":
+            total += t.parameters * width
+        elif storage == "masked":
+            total += t.parameters * width
+            if mask_encoding == "framework":
+                total += t.parameters * width
+            else:
+                total += (t.parameters +7) // 8
+        else:
+            nonzeros = sum(1 for v in t.data if v != 0.0)
+            total += nonzeros * (width + INDEX_BYTES)
+    return total
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +236,28 @@ def sparsity_row(model: str, ratio: float, granularity: str,
     says why: on a nominal axis the two granularities are not comparable, and
     the comparison is the lab.
     """
-    pass
+    params_before = total_parameters(before)
+    params_after = total_parameters(after)
+    values_zeroed = sum(1 for t in after for v in t.data if v == 0.0)
+    zeroed_fraction = values_zeroed / params_after if params_after else 0.0
+    achieved = 1.0 - params_after / params_before if params_before else 0.0
+
+    return {
+        "model": model,
+        "granularity": granularity,
+        "storage": storage,
+        "mask_encoding": mask_encoding if storage == "masked" else None,
+        "nominal_ratio": float(ratio),
+        "values_zeroed": values_zeroed,
+        "zeroed_fraction": round(zeroed_fraction, 6),
+        "parameters_before": params_before,
+        "parameters_after": params_after,
+        "achieved_reduction": round(achieved, 6),
+        "bytes_dense": bytes_stored(before, storage="dense"),
+        "bytes_stored": bytes_stored(after, storage=storage,
+                                     mask_encoding=mask_encoding),
+        "removal": classify_removal(before, after, storage=storage),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +290,29 @@ def classify_removal(before: Sequence[Tensor], after: Sequence[Tensor],
     will say so. It is reporting a property of the values, not a claim that
     anybody pruned with a 2:4 constraint in mind.
     """
-    pass
+    if storage not in STORAGE_FORMS:
+        raise TensorError(f"unknown storage {storage!r}; known: {list(STORAGE_FORMS)}")
+
+    if len(before) != len(after) or any(b.shape != a.shape for b, a in zip(before, after)):
+        return "structurally absent"
+
+    if storage == "sparse":
+        return "stored sparse"
+
+    def _is_nm(t: Tensor) -> bool:
+        for start in range(0, len(t.data), NM_M):
+            group = t.data[start:start + NM_M]
+            if sum(1 for v in group if v != 0.0) > NM_N:
+                return False
+        return True
+ 
+    if all(_is_nm(t) for t in after):
+        return "patterned"
+ 
+    if any(v == 0.0 for t in after for v in t.data):
+        return "masked"
+ 
+    return "dense"
 
 
 # ---------------------------------------------------------------------------
@@ -267,4 +340,23 @@ def sweep_model(model: dict[str, Any], ratios: Sequence[float],
     the baseline every other row is a ratio against, and a sweep without it
     has four numbers and no result.
     """
-    pass
+    tensors = model["tensors"]
+    rows: list[dict[str, Any]] = []
+    for gran in granularities:
+        if gran not in GRANULARITY_STORAGE:
+            raise TensorError(
+                f"unknown granularity {gran!r}; known: {list(GRANULARITY_STORAGE)}"
+            )
+        form = storage if storage is not None else GRANULARITY_STORAGE[gran]
+        for ratio in sorted(float(r) for r in ratios):
+            if gran == "fine":
+                after = [apply_mask(t, magnitude_mask(t, ratio)) for t in tensors]
+            else:
+                after = [drop_channels(t, channel_keep(t, ratio, p=p))
+                         for t in tensors]
+            rows.append(sparsity_row(
+                model=model["name"], ratio=ratio, granularity=gran,
+                before=tensors, after=after,
+                storage=form, mask_encoding=mask_encoding,
+            ))
+    return rows
