@@ -192,6 +192,7 @@ def bytes_stored(tensors: Sequence[Tensor], storage: str = "dense",
     accounting that rounds in its own favour is the thing this lab teaches you
     to distrust.
     """
+    total = 0
     for t in tensors:
         width = dtype_bytes(t.dtype)
         if storage == "dense":
