@@ -1,0 +1,72 @@
+{
+    "warmup_boundary": {
+        "value": 1,
+        "source": "bench.clock around workload.run() and workload.synchronied()",
+        "status": "ok",
+        "settled_ms": 18.9652,
+        "threshold_ms": 28.4479,
+        "tolerance": 0.5,
+        "retained": 99
+    },
+    "summarize_setup": {
+        "n": 100,
+        "mean": 23.1922,
+        "std": 42.3735,
+        "min": 18.6838,
+        "max": 442.6846,
+        "p50": 18.9647,
+        "p95": 19.1149,
+        "p99": 24.7262
+    },
+    "is_multimodal": {
+        "value": false,
+        "source": "bench.clock around workload.run() and workload.synchronied()",
+        "status": "ok",
+        "widest_gap_ms": 0.0233,
+        "median_gap_ms": 0.003,
+        "gap_ratio": 7.7418,
+        "ratio_threshold": 20.0,
+        "split_between_ms": [
+            19.0632,
+            19.0865
+        ],
+        "trimmed_per_side": 5,
+        "lower_group": {
+            "count": 86,
+            "fraction": 0.9556,
+            "mean_ms": 18.9317
+        },
+        "upper_group": {
+            "count": 6,
+            "fraction": 0.0667,
+            "mean_ms": 19.0878
+        }
+    },
+    "probe_power_state": {
+        "value": "25W",
+        "source": "nvpmodel -q",
+        "status": "ok",
+        "mode_id": 1,
+        "cpu_min_freq_khz": null,
+        "cpu_max_freq_khz": null,
+        "jetson_clocks": null
+    },
+    "probe_telemetry": {
+        "temperature_c": {
+            "value": 51.0,
+            "source": "sys/devices/virtual/thermal/thermal_zone8/temp",
+            "status": "ok",
+            "unit": "C",
+            "zone": "tj-thermal",
+            "all_zones_c": {
+                "cpu-thermal": 50.625,
+                "gpu-thermal": 50.875,
+                "soc0-thermal": 50.875,
+                "soc1-thermal": 50.906,
+                "soc2-thermal": 49.843,
+                "tj-thermal": 51.0
+            }
+        },
+        "power_mw": {
+            "value": null,
+            "source": 
