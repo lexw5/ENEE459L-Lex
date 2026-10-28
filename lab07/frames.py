@@ -5,6 +5,7 @@ from typing import Any, Iterable, Sequence
 from schema import BLACK_MAX, FLAT_SPREAD
 
 import cv2
+import math
 import time
 import json
 import numpy as np
@@ -114,37 +115,83 @@ def grab_frame(pipeline: str, warmup_frames: int = 15) -> np.ndarray:
 ############################
 
 def frame_bytes(width: int, height: int, fmt: str) -> int:
-    pass
+    if width <= 0 or height <= 0:
+        raise FrameError(f"{width}x{height} is not a frame")
+    # Round up: a frame that needs part of a byte still occupies the whole byte.
+    return int(math.ceil(width * height * _bytes_per_pixel(fmt)))
 
 
 def bytes_per_second(width: int, height: int, fmt: str, fps: float) -> float:
-    pass
+    if fps <= 0:
+        raise FrameError(f"{fps} fps is not a frame rate")
+    return float(frame_bytes(width, height, fmt) * fps)
 
 
 def frame_stats(pixels: Sequence[float] | Iterable[float]) -> dict[str, float]:
-    pass
+    values = np.asarray(list(pixels) if not isinstance(pixels, np.ndarray) else pixels,
+                        dtype=np.float64).ravel()
+    if values.size == 0:
+        raise FrameError("a frame with no pixels has no statistics")
+    lo = float(values.min())
+    hi = float(values.max())
+    return {
+        "min": lo,
+        "max": hi,
+        "mean": float(values.mean()),
+        "spread": hi - lo,
+        "sd": float(values.std()),
+        "samples": float(values.size),
+    }
 
 
 def classify(stats: dict[str, float]) -> tuple[str, str]:
-    pass
+    mean, spread, hi = stats["mean"], stats["spread"], stats["max"]
+    numbers = f"mean {mean:.4f}, spread {spread:.4f}."
+    # Order matters: a black frame is also flat and dark, so the most severe
+    # diagnosis is checked first and the first match wins.
+    if hi <= BLACK_MAX:
+        return "black", f"max {hi:.4f} <= {BLACK_MAX:.4f}. No signal from the sensor."
+    if spread < FLAT_SPREAD:
+        return "flat", f"{numbers} Signal but no structure."
+    if mean < 0.10:
+        return "dark", f"{numbers} Structured but underexposed."
+    return "scene", f"{numbers} Exposed and structured."
 
 
 def conversion_bytes(width: int, height: int, src: str, dst: str) -> int:
-    pass
+    # A conversion reads every byte of the source frame and writes every byte
+    # of the destination frame; both trips cross the memory bus.
+    return frame_bytes(width, height, src) + frame_bytes(width, height, dst)
 
 
 def resize_bytes(src_w: int, src_h: int, dst_w: int, dst_h: int,
                  fmt: str) -> int:
-    pass
+    # Read the full-size frame once, write the small one once.
+    return frame_bytes(src_w, src_h, fmt) + frame_bytes(dst_w, dst_h, fmt)
 
 
 def normalise_bytes(width: int, height: int, channels: int = 3,
                     out_bytes: int = 4) -> int:
-    pass
+    if channels <= 0 or out_bytes <= 0:
+        raise FrameError(f"{channels} channels of {out_bytes} bytes is not a tensor")
+    values = width * height * channels
+    # Read one uint8 per value, write one float of `out_bytes` per value.
+    return values * 1 + values * out_bytes
 
 
 def summarise_formats(width: int, height: int) -> list[dict[str, Any]]:
-    pass
+    rgb = frame_bytes(width, height, "rgb")
+    rows = []
+    for fmt in FORMATS:
+        size = frame_bytes(width, height, fmt)
+        rows.append({
+            "format": fmt,
+            "bytes_per_pixel": _bytes_per_pixel(fmt),
+            "bytes": size,
+            "relative_to_rgb": size / rgb,
+            "note": FORMAT_NOTES[fmt],
+        })
+    return rows
 
 
 ###############################
