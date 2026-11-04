@@ -124,8 +124,8 @@ def speedup(base_ms: float, other_ms: float) -> dict[str, Any]:
 
 
 def max_abs_dev(a: Sequence[float], b: Sequence[float]) -> dict[str, Any]:
-    xa = [_finite(v, f"a[{i}]") for i, v in enumerate[a]]
-    xb = [_finite(v, f"b[{i}]") for i, v in enumerate[b]]
+    xa = [_finite(v, f"a[{i}]") for i, v in enumerate(a)]
+    xb = [_finite(v, f"b[{i}]") for i, v in enumerate(b)]
     if not xa or not xb:
         raise AgreementError("can't compute empty array")
     if len(xa) != len(xb):
@@ -153,8 +153,8 @@ def max_abs_dev(a: Sequence[float], b: Sequence[float]) -> dict[str, Any]:
 
 def max_rel_dev(a: Sequence[float], b: Sequence[float],
                 floor: float = REL_FLOOR) -> dict[str, Any]:
-    xa = [_finite(v, f"a[{i}]") for i, v in enumerate[a]]
-    xb = [_finite(v, f"b[{i}]") for i, v in enumerate[b]]
+    xa = [_finite(v, f"a[{i}]") for i, v in enumerate(a)]
+    xb = [_finite(v, f"b[{i}]") for i, v in enumerate(b)]
     tau = _finite(floor, "floor")
     if tau < 0.0:
         raise AgreementError(f"floor:{tau} is < 0.0")
